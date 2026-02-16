@@ -1,20 +1,52 @@
-from langchain_core.output_parsers import PydanticOutputParser
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai.chat_models import ChatOpenAI
+from pydantic import BaseModel, Field
+from enum import Enum
+from typing import List
 
-parser = PydanticOutputParser(pydantic_object=CompanyIntelligence)
 
-format_instructions = parser.get_format_instructions()
+class Outlook(str, Enum):
+    positive = "positive"
+    neutral = "neutral"
+    negative = "negative"
 
-prompt = ChatPromptTemplate.from_messages([
-    ("system",
-     "You are a strategic company intelligence analyst.\n"
-     "Follow the output format strictly.\n"
-     "{format_instructions}"
-    ),
-    ("user",
-     "Analyze the company: {company_name}"
+
+class CompanyIntelligence(BaseModel):
+    summary: str = Field(
+        ...,
+        description="Concise summary of the company analysis (max 3 sentences)."
     )
-])
 
-prompt = prompt.partial(format_instructions=format_instructions)
+    strengths: List[str] = Field(
+        ...,
+        max_length=5,
+        description="List of key strengths (maximum 5)."
+    )
+
+    weaknesses: List[str] = Field(
+        ...,
+        max_length=5,
+        description="List of key weaknesses (maximum 5)."
+    )
+
+    competitive_advantage: List[str] = Field(
+        ...,
+        max_length=5,
+        description="List of structural competitive advantages (maximum 5)."
+    )
+
+    risk_factors: List[str] = Field(
+        ...,
+        max_length=5,
+        description="List of key risk factors (maximum 5)."
+    )
+
+    outlook: Outlook = Field(
+        ...,
+        description="Overall forward-looking classification."
+    )
+
+    confidence: float = Field(
+        ...,
+        ge=0.0,
+        le=1.0,
+        description="Model confidence between 0 and 1."
+    )

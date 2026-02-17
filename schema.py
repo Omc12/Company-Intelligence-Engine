@@ -50,3 +50,9 @@ class CompanyIntelligence(BaseModel):
         le=1.0,
         description="Model confidence between 0 and 1."
     )
+class CompanyFeatures(BaseModel):
+    risk_score: float
+    strength_count: int
+    weakness_count: int
+    risk_factor_count: int
+    outlook_encoded: int

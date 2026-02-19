@@ -1,6 +1,6 @@
-from langchain_community.embeddings import HuggingFaceBgeEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 
 def get_embeddings():
-    return HuggingFaceBgeEmbeddings (
+    return HuggingFaceEmbeddings (
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )

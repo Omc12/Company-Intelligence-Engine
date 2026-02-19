@@ -4,15 +4,13 @@ def main():
     company_name = "OpenAI"
 
     try:
-        result = analyze_company(company_name)
+        intel, features = analyze_company(company_name)
 
-        print("\n--- Structured Output ---\n")
-        print(result)
+        print("\n--- Structured Intelligence ---\n")
+        print(intel)
 
-        print("\n--- Accessing Individual Fields ---\n")
-        print("Summary:", result.summary)
-        print("Outlook:", result.outlook)
-        print("Confidence:", result.confidence)    
+        print("\n--- Engineered Features ---\n")
+        print(features)  
 
     except Exception as e:
         print("Validation failed:", e)

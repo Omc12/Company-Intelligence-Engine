@@ -17,25 +17,25 @@ class CompanyIntelligence(BaseModel):
 
     strengths: List[str] = Field(
         ...,
-        max_length=5,
+        max_length=3,
         description="List of key strengths (maximum 5)."
     )
 
     weaknesses: List[str] = Field(
         ...,
-        max_length=5,
+        max_length=3,
         description="List of key weaknesses (maximum 5)."
     )
 
     competitive_advantage: List[str] = Field(
         ...,
-        max_length=5,
+        max_length=3,
         description="List of structural competitive advantages (maximum 5)."
     )
 
     risk_factors: List[str] = Field(
         ...,
-        max_length=5,
+        max_length=3,
         description="List of key risk factors (maximum 5)."
     )
 
@@ -50,9 +50,3 @@ class CompanyIntelligence(BaseModel):
         le=1.0,
         description="Model confidence between 0 and 1."
     )
-class CompanyFeatures(BaseModel):
-    risk_score: float
-    strength_count: int
-    weakness_count: int
-    risk_factor_count: int
-    outlook_encoded: int

@@ -1,7 +1,7 @@
-from model import get_model
-from parser import get_base_parser
-from prompt import get_prompt
-from features import compute_features
+from core.model import get_model
+from core.parser import get_base_parser
+from core.prompt import get_prompt
+from core.features import compute_features
 
 model = get_model()
 base_parser = get_base_parser()

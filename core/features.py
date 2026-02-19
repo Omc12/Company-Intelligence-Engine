@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from schema import CompanyIntelligence
+from core.schema import CompanyIntelligence
 
 class CompanyFeatures(BaseModel):
     strength_count: int

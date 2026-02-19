@@ -1,4 +1,4 @@
-from engine import analyze_company
+from core.engine import analyze_company
 
 def main():
     company_name = "OpenAI"

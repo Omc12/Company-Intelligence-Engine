@@ -10,8 +10,8 @@ def build_vector_store():
     text = list(COMPANY_DOCS.values())
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=300,
-        chunk_overlap=50
+        chunk_size=100,
+        chunk_overlap=20
     )
 
     chunks = splitter.create_documents(text)

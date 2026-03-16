@@ -1,6 +1,12 @@
 langchain
 langchain-community
-langchain-core
+langchain-huggingface
 langchain-groq
-groq
-streamlit
+sentence-transformers
+faiss-cpu
+rank-bm25
+pydantic
+beautifulsoup4
+requests
+python-dotenv
+torch

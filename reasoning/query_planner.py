@@ -1,29 +1,27 @@
 from core.model import get_model
 
-
 class QueryPlanner:
 
     def __init__(self):
         self.model = get_model(temperature=0)
 
-    def plan(self, query: str):
+    def plan(self, query):
 
         prompt = f"""
-Break the following query into 2–4 focused subqueries that help retrieve evidence.
+Break the query into 2-4 retrieval subqueries.
 
 Query:
 {query}
-
-Return a numbered list of subqueries.
 """
 
         response = self.model.invoke(prompt).content
 
         lines = response.split("\n")
-        subqueries = []
 
-        for line in lines:
-            if "." in line:
-                subqueries.append(line.split(".",1)[1].strip())
+        queries = []
 
-        return subqueries
+        for l in lines:
+            if "." in l:
+                queries.append(l.split(".",1)[1].strip())
+
+        return queries

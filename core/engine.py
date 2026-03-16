@@ -1,5 +1,3 @@
-# core/engine.py
-
 from core.model import get_model
 from core.schema import CompanyIntelligence
 from core.features import compute_features
@@ -7,140 +5,94 @@ from core.features import compute_features
 from core.risk_chain import RiskChain
 from core.business_chain import BusinessChain
 
+from reasoning.router import SectionRouter
 from reasoning.query_planner import QueryPlanner
 
-from data_ingestion.sec_indexer import build_or_load_indexes
+from rag.retriever import retrieve_documents
 from rag.reranker import rerank_documents
 
+from data_ingestion.sec_indexer import build_or_load_indexes
 
-def analyze_company(company_name: str, cik: str, user_query: str):
 
-    print("\n=== ANALYZING COMPANY ===\n")
+def deduplicate_docs(docs):
 
-    # --------------------------------------------------
-    # MODELS
-    # --------------------------------------------------
+    seen = set()
+    unique = []
 
-    risk_model = get_model(temperature=0.0)
-    business_model = get_model(temperature=0.15)
+    for d in docs:
+        text = d.page_content.strip()
 
-    risk_chain = RiskChain(risk_model)
-    business_chain = BusinessChain(business_model)
+        if text not in seen:
+            seen.add(text)
+            unique.append(d)
 
-    # --------------------------------------------------
-    # QUERY PLANNING
-    # --------------------------------------------------
+    return unique
 
+
+def analyze_company(company_name, cik, query):
+
+    print("\n=== ANALYZING COMPANY ===")
+
+    router = SectionRouter()
     planner = QueryPlanner()
 
-    subqueries = planner.plan(user_query)
+    route_scores = router.route(query)
 
-    print("\n--- SUBQUERIES ---\n")
-    for q in subqueries:
-        print("-", q)
+    print("\n--- ROUTER ---")
+    print(route_scores)
 
-    # --------------------------------------------------
-    # LOAD INDEXES
-    # --------------------------------------------------
+    sections = []
+
+    for s, score in route_scores.items():
+        if score > 0.5:
+            sections.append(s)
+
+    print("\nSections selected:", sections)
+
+    subqueries = planner.plan(query)
+
+    print("\n--- SUBQUERIES ---")
+    print(subqueries)
 
     indexes = build_or_load_indexes(cik)
-
-    risk_retriever = indexes["risk"].as_retriever(search_kwargs={"k": 5})
-    business_retriever = indexes["business"].as_retriever(search_kwargs={"k": 5})
-
-    # --------------------------------------------------
-    # RETRIEVE DOCUMENTS
-    # --------------------------------------------------
 
     risk_docs = []
     business_docs = []
 
     for q in subqueries:
 
-        r_docs = risk_retriever.invoke(q)
-        b_docs = business_retriever.invoke(q)
+        if "risk" in sections:
+            r = indexes["risk"].as_retriever(search_kwargs={"k":15})
+            risk_docs.extend(r.invoke(q))
 
-        risk_docs.extend(r_docs)
-        business_docs.extend(b_docs)
+        if "business" in sections:
+            b = indexes["business"].as_retriever(search_kwargs={"k":15})
+            business_docs.extend(b.invoke(q))
 
-    def deduplicate_docs(docs):
-        seen = set()
-        unique = []
-
-        for d in docs:
-            content = d.page_content.strip()
-            if content not in seen:
-                seen.add(content)
-                unique.append(d)
-
-        return unique
-    
     risk_docs = deduplicate_docs(risk_docs)
     business_docs = deduplicate_docs(business_docs)
 
-    # --------------------------------------------------
-    # RERANK
-    # --------------------------------------------------
+    risk_docs = rerank_documents(query, risk_docs, top_k=5)
+    business_docs = rerank_documents(query, business_docs, top_k=5)
 
-    risk_docs = rerank_documents(user_query, risk_docs, top_k=5)
-    business_docs = rerank_documents(user_query, business_docs, top_k=5)
+    risk_context = "\n\n".join([d.page_content for d in risk_docs])
+    business_context = "\n\n".join([d.page_content for d in business_docs])
 
-    # --------------------------------------------------
-    # CONTEXT BUILDING
-    # --------------------------------------------------
-
-    risk_context = "\n\n".join([doc.page_content for doc in risk_docs])
-    business_context = "\n\n".join([doc.page_content for doc in business_docs])
-
-    print("\n--- RISK CONTEXT ---\n")
-    print(risk_context[:1200])
-
-    print("\n--- BUSINESS CONTEXT ---\n")
-    print(business_context[:1200])
-
-    # --------------------------------------------------
-    # RUN CHAINS
-    # --------------------------------------------------
+    risk_chain = RiskChain(get_model(temperature=0))
+    business_chain = BusinessChain(get_model(temperature=0.15))
 
     risk_output = risk_chain.invoke(risk_context)
     business_output = business_chain.invoke(business_context)
 
-    print("\nRisk factors:", risk_output.risk_factors)
-    print("Strengths:", business_output.strengths)
-
-    # --------------------------------------------------
-    # CONFIDENCE MERGE
-    # --------------------------------------------------
-
     confidence = min(risk_output.confidence, business_output.confidence)
 
-    # --------------------------------------------------
-    # DETERMINISTIC SUMMARY
-    # --------------------------------------------------
+    summary = f"""
+{company_name} operates with strengths such as {business_output.strengths[0]}.
+It faces risks including {risk_output.risk_factors[0]}.
+Overall outlook is {risk_output.outlook.value}.
+"""
 
-    first_strength = (
-        business_output.strengths[0]
-        if business_output.strengths
-        else "diverse capabilities"
-    )
-
-    first_risk = (
-        risk_output.risk_factors[0]
-        if risk_output.risk_factors
-        else "market uncertainties"
-    )
-
-    summary = (
-        f"{company_name} operates with strengths such as {first_strength}. "
-        f"It faces risks including {first_risk}. "
-        f"Overall outlook is {risk_output.outlook.value}."
-    )
-
-    # --------------------------------------------------
-    # FINAL OBJECT
-    # --------------------------------------------------
-
-    final_output = CompanyIntelligence(
+    result = CompanyIntelligence(
         summary=summary,
         strengths=business_output.strengths,
         weaknesses=business_output.weaknesses,
@@ -150,10 +102,6 @@ def analyze_company(company_name: str, cik: str, user_query: str):
         confidence=confidence
     )
 
-    # --------------------------------------------------
-    # FEATURE ENGINEERING
-    # --------------------------------------------------
+    features = compute_features(result)
 
-    features = compute_features(final_output)
-
-    return final_output, features
+    return result, features

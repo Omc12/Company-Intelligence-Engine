@@ -1,39 +1,21 @@
-import re
-from core.model import get_model
+from sentence_transformers import CrossEncoder
+import torch
 
-model = get_model()
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-def rerank_documents(query, docs, top_k=3):
-    prompt = f"""
-You are ranking document relevance.
+reranker = CrossEncoder(
+    "cross-encoder/ms-marco-MiniLM-L-6-v2",
+    device=device
+)
 
-Query:
-{query}
+def rerank_documents(query, docs, top_k=5):
 
-Rank the following documents from most relevant to least relevant.
-Return only the indices in order, separated by commas.
-Example: 0,2,1
-Do not write anything else.
+    pairs = [(query, d.page_content) for d in docs]
 
-Documents:
-"""
+    scores = reranker.predict(pairs)
 
-    for i, doc in enumerate(docs):
-        prompt += f"\nDocument {i}:\n{doc.page_content}\n"
+    scored = list(zip(docs, scores))
 
-    response = model.invoke(prompt).content
+    ranked = sorted(scored, key=lambda x: x[1], reverse=True)
 
-    print("\n--- Reranker Raw Response ---")
-    print(response)
-
-    # Extract all integers from response
-    indices = list(map(int, re.findall(r'\d+', response)))
-
-    # Ensure valid range
-    indices = [i for i in indices if 0 <= i < len(docs)]
-
-    if not indices:
-        # fallback: return first top_k
-        return docs[:top_k]
-
-    return [docs[i] for i in indices[:top_k]]
+    return [d for d, _ in ranked[:top_k]]

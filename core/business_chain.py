@@ -10,10 +10,12 @@ class BusinessChain:
         prompt = f"""
 Extract company strengths, weaknesses and competitive advantages.
 
-Return JSON with:
-strengths
-weaknesses
-competitive_advantage
+Return JSON with the following arrays (lists of strings):
+- strengths
+- weaknesses
+- competitive_advantage
+
+You must also return confidence as a float.
 confidence
 
 Return only valid JSON. Do not include markdown fences or extra text.

@@ -8,29 +8,30 @@ class SectionRouter:
     def route(self, query):
 
         prompt = f"""
-Classify which section should be searched.
+Decide which sections are relevant.
 
 Options:
-- business
-- risk
+risk
+business
+
+Return JSON scores.
 
 Query:
 {query}
-
-Return JSON with scores for each section.
 """
 
-        response = self.model.invoke(prompt).content.lower()
+        try:
+            response = self.model.invoke(prompt).content.lower()
+        except Exception as e:
+            print(f"[router] Falling back to default section scores: {e}")
+            return {"risk":0.9,"business":0.9}
 
-        scores = {
-            "risk": 0.5,
-            "business": 0.5
-        }
+        scores = {"risk":0.5,"business":0.5}
 
         if "risk" in response:
-            scores["risk"] = 0.9
+            scores["risk"]=0.9
 
         if "business" in response:
-            scores["business"] = 0.9
+            scores["business"]=0.9
 
         return scores

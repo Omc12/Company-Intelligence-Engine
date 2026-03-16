@@ -2,12 +2,12 @@ from core.engine import analyze_company
 
 def main():
 
-    company = "Microsoft"
-    cik = "0000789019"
+    company="Microsoft"
+    cik="0000789019"
 
-    query = "What competitive risks affect Microsoft's AI business?"
+    query="What competitive risks affect Microsoft's AI business?"
 
-    intel, features = analyze_company(company, cik, query)
+    intel,features=analyze_company(company,cik,query)
 
     print("\n--- Structured Intelligence ---\n")
     print(intel)
@@ -16,5 +16,5 @@ def main():
     print(features)
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     main()

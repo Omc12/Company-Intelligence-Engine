@@ -8,100 +8,83 @@ from core.business_chain import BusinessChain
 from reasoning.router import SectionRouter
 from reasoning.query_planner import QueryPlanner
 
-from rag.retriever import retrieve_documents
 from rag.reranker import rerank_documents
+from rag.hybrid_retriever import hybrid_retrieve
 
 from data_ingestion.sec_indexer import build_or_load_indexes
 
 
-def deduplicate_docs(docs):
+def deduplicate(docs):
 
-    seen = set()
-    unique = []
+    seen=set()
+    unique=[]
 
     for d in docs:
-        text = d.page_content.strip()
-
-        if text not in seen:
-            seen.add(text)
+        t=d.page_content.strip()
+        if t not in seen:
+            seen.add(t)
             unique.append(d)
 
     return unique
 
 
-def analyze_company(company_name, cik, query):
+def analyze_company(company,cik,query):
 
-    print("\n=== ANALYZING COMPANY ===")
+    router=SectionRouter()
+    planner=QueryPlanner()
 
-    router = SectionRouter()
-    planner = QueryPlanner()
+    sections=router.route(query)
 
-    route_scores = router.route(query)
+    subqueries=planner.plan(query)
 
-    print("\n--- ROUTER ---")
-    print(route_scores)
+    indexes=build_or_load_indexes(cik)
 
-    sections = []
+    risk_docs=[]
+    business_docs=[]
 
-    for s, score in route_scores.items():
-        if score > 0.5:
-            sections.append(s)
-
-    print("\nSections selected:", sections)
-
-    subqueries = planner.plan(query)
-
-    print("\n--- SUBQUERIES ---")
-    print(subqueries)
-
-    indexes = build_or_load_indexes(cik)
-
-    risk_docs = []
-    business_docs = []
-
-    for q in subqueries:
-
-        if "risk" in sections:
-            r = indexes["risk"].as_retriever(search_kwargs={"k":15})
+    if sections["risk"]>0.5:
+        r=indexes["risk"].as_retriever(search_kwargs={"k":15})
+        for q in subqueries:
             risk_docs.extend(r.invoke(q))
 
-        if "business" in sections:
-            b = indexes["business"].as_retriever(search_kwargs={"k":15})
+    if sections["business"]>0.5:
+        b=indexes["business"].as_retriever(search_kwargs={"k":15})
+        for q in subqueries:
             business_docs.extend(b.invoke(q))
 
-    risk_docs = deduplicate_docs(risk_docs)
-    business_docs = deduplicate_docs(business_docs)
+    risk_docs=deduplicate(risk_docs)
+    business_docs=deduplicate(business_docs)
 
-    risk_docs = rerank_documents(query, risk_docs, top_k=5)
-    business_docs = rerank_documents(query, business_docs, top_k=5)
+    risk_docs=rerank_documents(query,risk_docs)
+    business_docs=rerank_documents(query,business_docs)
 
-    risk_context = "\n\n".join([d.page_content for d in risk_docs])
-    business_context = "\n\n".join([d.page_content for d in business_docs])
+    risk_context="\n\n".join([d.page_content for d in risk_docs])
+    business_context="\n\n".join([d.page_content for d in business_docs])
 
-    risk_chain = RiskChain(get_model(temperature=0))
-    business_chain = BusinessChain(get_model(temperature=0.15))
+    risk_chain=RiskChain(get_model())
+    business_chain=BusinessChain(get_model(temperature=0.15))
 
-    risk_output = risk_chain.invoke(risk_context)
-    business_output = business_chain.invoke(business_context)
+    risk=risk_chain.invoke(risk_context)
+    business=business_chain.invoke(business_context)
 
-    confidence = min(risk_output.confidence, business_output.confidence)
+    confidence=min(risk.confidence,business.confidence)
 
-    summary = f"""
-{company_name} operates with strengths such as {business_output.strengths[0]}.
-It faces risks including {risk_output.risk_factors[0]}.
-Overall outlook is {risk_output.outlook.value}.
+    summary=f"""
+{company} operates with strengths such as {business.strengths[0]}.
+It faces risks including {risk.risk_factors[0]}.
+Overall outlook is {risk.outlook.value}.
 """
 
-    result = CompanyIntelligence(
+    result=CompanyIntelligence(
         summary=summary,
-        strengths=business_output.strengths,
-        weaknesses=business_output.weaknesses,
-        competitive_advantage=business_output.competitive_advantage,
-        risk_factors=risk_output.risk_factors,
-        outlook=risk_output.outlook,
+        strengths=business.strengths,
+        weaknesses=business.weaknesses,
+        competitive_advantage=business.competitive_advantage,
+        risk_factors=risk.risk_factors,
+        outlook=risk.outlook,
         confidence=confidence
     )
 
-    features = compute_features(result)
+    features=compute_features(result)
 
-    return result, features
+    return result,features

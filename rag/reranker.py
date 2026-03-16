@@ -2,20 +2,33 @@ from sentence_transformers import CrossEncoder
 import torch
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+_reranker = None
 
-reranker = CrossEncoder(
-    "cross-encoder/ms-marco-MiniLM-L-6-v2",
-    device=device
-)
+def rerank_documents(query,docs,top_k=5):
 
-def rerank_documents(query, docs, top_k=5):
+    if not docs:
+        return []
 
-    pairs = [(query, d.page_content) for d in docs]
+    global _reranker
 
-    scores = reranker.predict(pairs)
+    if _reranker is None:
+        try:
+            _reranker = CrossEncoder(
+                "cross-encoder/ms-marco-MiniLM-L-6-v2",
+                device=device
+            )
+        except Exception as e:
+            print(f"[reranker] Falling back to original retrieval order: {e}")
+            return docs[:top_k]
 
-    scored = list(zip(docs, scores))
+    pairs=[(query,d.page_content) for d in docs]
 
-    ranked = sorted(scored, key=lambda x: x[1], reverse=True)
+    try:
+        scores=_reranker.predict(pairs)
+    except Exception as e:
+        print(f"[reranker] Prediction failed, using original retrieval order: {e}")
+        return docs[:top_k]
 
-    return [d for d, _ in ranked[:top_k]]
+    ranked=sorted(zip(docs,scores), key=lambda x:x[1], reverse=True)
+
+    return [d for d,_ in ranked[:top_k]]

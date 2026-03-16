@@ -1,33 +1,54 @@
-import os 
+# data_ingestion/sec_indexer.py
+
+import os
 from langchain_community.vectorstores import FAISS
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from rag.embeddings import get_embeddings
-from data_ingestion.sec_fetcher import fetch_latest_10k_html, extract_item_1a
+from data_ingestion.sec_fetcher import fetch_latest_10k_sections
+
 
 BASE_INDEX_PATH = "indexes"
 
-def build_or_load_index(cik):
-    os.makedirs(BASE_INDEX_PATH, exist_ok=True)
-    index_path = os.path.join(BASE_INDEX_PATH, cik)
+
+def build_or_load_indexes(cik):
+    base_path = os.path.join(BASE_INDEX_PATH, cik)
+    risk_path = os.path.join(base_path, "risk")
+    business_path = os.path.join(base_path, "business")
+
+    os.makedirs(base_path, exist_ok=True)
 
     embeddings = get_embeddings()
 
-    if os.path.exists(index_path):
-        return FAISS.load_local(index_path, embeddings, allow_dangerous_deserialization=True)
-    
-    html = fetch_latest_10k_html(cik)
-    risk_text = extract_item_1a(html)
+    if os.path.exists(risk_path) and os.path.exists(business_path):
+        return {
+            "risk": FAISS.load_local(risk_path, embeddings, allow_dangerous_deserialization=True),
+            "business": FAISS.load_local(business_path, embeddings, allow_dangerous_deserialization=True)
+        }
+
+    business_text, risk_text = fetch_latest_10k_sections(cik)
+
+    print("\n--- BUSINESS PREVIEW ---\n")
+    print(business_text[:1000])
+
+    print("\n--- RISK PREVIEW ---\n")
+    print(risk_text[:1000])
 
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=800,
-        chunk_overlap=100
+        chunk_size=1000,
+        chunk_overlap=150
     )
 
-    docs = splitter.create_documents([risk_text])
+    business_docs = splitter.create_documents([business_text])
+    risk_docs = splitter.create_documents([risk_text])
 
-    vector_store = FAISS.from_documents(docs, embeddings)
+    business_store = FAISS.from_documents(business_docs, embeddings)
+    risk_store = FAISS.from_documents(risk_docs, embeddings)
 
-    vector_store.save_local(index_path)
+    business_store.save_local(business_path)
+    risk_store.save_local(risk_path)
 
-    return vector_store
+    return {
+        "risk": risk_store,
+        "business": business_store
+    }

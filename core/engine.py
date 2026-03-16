@@ -1,53 +1,159 @@
+# core/engine.py
+
 from core.model import get_model
-from core.parser import get_base_parser
-from core.prompt import get_prompt
+from core.schema import CompanyIntelligence
 from core.features import compute_features
 
-from data_ingestion.sec_indexer import build_or_load_index
+from core.risk_chain import RiskChain
+from core.business_chain import BusinessChain
+
+from reasoning.query_planner import QueryPlanner
+
+from data_ingestion.sec_indexer import build_or_load_indexes
 from rag.reranker import rerank_documents
 
 
-# Initialize once
-model = get_model()
-base_parser = get_base_parser()
-format_instructions = base_parser.get_format_instructions()
-prompt = get_prompt(format_instructions)
+def analyze_company(company_name: str, cik: str, user_query: str):
 
-chain = prompt | model | base_parser
+    print("\n=== ANALYZING COMPANY ===\n")
 
+    # --------------------------------------------------
+    # MODELS
+    # --------------------------------------------------
 
-def analyze_company(company_name: str, cik: str):
-    # 1️⃣ Build or load persistent index
-    vector_store = build_or_load_index(cik)
+    risk_model = get_model(temperature=0.0)
+    business_model = get_model(temperature=0.15)
 
-    # 2️⃣ Create retriever dynamically
-    retriever = vector_store.as_retriever(search_kwargs={"k": 6})
+    risk_chain = RiskChain(risk_model)
+    business_chain = BusinessChain(business_model)
 
-    retrieval_query = (
-        f"Analyze the key risks, weaknesses, strengths "
-        f"and competitive position of {company_name}"
+    # --------------------------------------------------
+    # QUERY PLANNING
+    # --------------------------------------------------
+
+    planner = QueryPlanner()
+
+    subqueries = planner.plan(user_query)
+
+    print("\n--- SUBQUERIES ---\n")
+    for q in subqueries:
+        print("-", q)
+
+    # --------------------------------------------------
+    # LOAD INDEXES
+    # --------------------------------------------------
+
+    indexes = build_or_load_indexes(cik)
+
+    risk_retriever = indexes["risk"].as_retriever(search_kwargs={"k": 5})
+    business_retriever = indexes["business"].as_retriever(search_kwargs={"k": 5})
+
+    # --------------------------------------------------
+    # RETRIEVE DOCUMENTS
+    # --------------------------------------------------
+
+    risk_docs = []
+    business_docs = []
+
+    for q in subqueries:
+
+        r_docs = risk_retriever.invoke(q)
+        b_docs = business_retriever.invoke(q)
+
+        risk_docs.extend(r_docs)
+        business_docs.extend(b_docs)
+
+    def deduplicate_docs(docs):
+        seen = set()
+        unique = []
+
+        for d in docs:
+            content = d.page_content.strip()
+            if content not in seen:
+                seen.add(content)
+                unique.append(d)
+
+        return unique
+    
+    risk_docs = deduplicate_docs(risk_docs)
+    business_docs = deduplicate_docs(business_docs)
+
+    # --------------------------------------------------
+    # RERANK
+    # --------------------------------------------------
+
+    risk_docs = rerank_documents(user_query, risk_docs, top_k=5)
+    business_docs = rerank_documents(user_query, business_docs, top_k=5)
+
+    # --------------------------------------------------
+    # CONTEXT BUILDING
+    # --------------------------------------------------
+
+    risk_context = "\n\n".join([doc.page_content for doc in risk_docs])
+    business_context = "\n\n".join([doc.page_content for doc in business_docs])
+
+    print("\n--- RISK CONTEXT ---\n")
+    print(risk_context[:1200])
+
+    print("\n--- BUSINESS CONTEXT ---\n")
+    print(business_context[:1200])
+
+    # --------------------------------------------------
+    # RUN CHAINS
+    # --------------------------------------------------
+
+    risk_output = risk_chain.invoke(risk_context)
+    business_output = business_chain.invoke(business_context)
+
+    print("\nRisk factors:", risk_output.risk_factors)
+    print("Strengths:", business_output.strengths)
+
+    # --------------------------------------------------
+    # CONFIDENCE MERGE
+    # --------------------------------------------------
+
+    confidence = min(risk_output.confidence, business_output.confidence)
+
+    # --------------------------------------------------
+    # DETERMINISTIC SUMMARY
+    # --------------------------------------------------
+
+    first_strength = (
+        business_output.strengths[0]
+        if business_output.strengths
+        else "diverse capabilities"
     )
 
-    # 3️⃣ Retrieve
-    docs = retriever.invoke(retrieval_query)
+    first_risk = (
+        risk_output.risk_factors[0]
+        if risk_output.risk_factors
+        else "market uncertainties"
+    )
 
-    # 4️⃣ Rerank
-    docs = rerank_documents(retrieval_query, docs, top_k=3)
+    summary = (
+        f"{company_name} operates with strengths such as {first_strength}. "
+        f"It faces risks including {first_risk}. "
+        f"Overall outlook is {risk_output.outlook.value}."
+    )
 
-    print("\n--- Final Retrieved Chunks After Reranking ---\n")
-    for i, doc in enumerate(docs, 1):
-        print(f"\nChunk {i}:\n{doc.page_content[:500]}\n")
+    # --------------------------------------------------
+    # FINAL OBJECT
+    # --------------------------------------------------
 
-    # 5️⃣ Build context
-    context = "\n\n".join([doc.page_content for doc in docs])
+    final_output = CompanyIntelligence(
+        summary=summary,
+        strengths=business_output.strengths,
+        weaknesses=business_output.weaknesses,
+        competitive_advantage=business_output.competitive_advantage,
+        risk_factors=risk_output.risk_factors,
+        outlook=risk_output.outlook,
+        confidence=confidence
+    )
 
-    # 6️⃣ Run structured chain
-    intel = chain.invoke({
-        "company_name": company_name,
-        "context": context
-    })
+    # --------------------------------------------------
+    # FEATURE ENGINEERING
+    # --------------------------------------------------
 
-    # 7️⃣ Deterministic features
-    features = compute_features(intel)
+    features = compute_features(final_output)
 
-    return intel, features
+    return final_output, features

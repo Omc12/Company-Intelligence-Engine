@@ -3,8 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def get_model():
+def get_model(temperature=0.0):
     return ChatGroq(
         model="llama-3.3-70b-versatile",
-        temperature=0
+        temperature=temperature
     )

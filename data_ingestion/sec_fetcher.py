@@ -5,15 +5,16 @@ from bs4 import BeautifulSoup
 
 
 HEADERS = {
-    "User-Agent": "Company Intelligence Engine (your_email@example.com)"
+    "User-Agent": "Company Intelligence Engine (omchimurkar45@gmail.com)"
 }
 
 
-def fetch_latest_10k_html(cik):
+def fetch_latest_10k_sections(cik):
     url = f"https://data.sec.gov/submissions/CIK{cik}.json"
+    print("Fetching submission JSON:", url)
+
     response = requests.get(url, headers=HEADERS)
     data = response.json()
-
     filings = data["filings"]["recent"]
 
     for i, form in enumerate(filings["form"]):
@@ -22,40 +23,33 @@ def fetch_latest_10k_html(cik):
             primary_doc = filings["primaryDocument"][i]
 
             filing_url = (
-                f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
-                f"{accession}/{primary_doc}"
+                f"https://www.sec.gov/Archives/edgar/data/"
+                f"{int(cik)}/{accession}/{primary_doc}"
             )
 
+            print("Fetching filing:", filing_url)
+
             filing_response = requests.get(filing_url, headers=HEADERS)
-            return filing_response.text
+            html = filing_response.text
+
+            soup = BeautifulSoup(html, "html.parser")
+
+            # Extract business section
+            business_anchor = soup.find(id=lambda x: x and "item_1" in x.lower())
+            risk_anchor = soup.find(id=lambda x: x and "item_1a" in x.lower())
+
+            if not risk_anchor:
+                raise ValueError("Risk section anchor not found.")
+
+            # Extract text starting from anchor
+            business_text = ""
+            risk_text = ""
+
+            if business_anchor:
+                business_text = business_anchor.find_parent().get_text(separator="\n")
+
+            risk_text = risk_anchor.find_parent().get_text(separator="\n")
+
+            return business_text, risk_text
 
     raise ValueError("No 10-K found.")
-
-def extract_item_1a(html_text):
-    soup = BeautifulSoup(html_text, "lxml")
-    text = soup.get_text(separator="\n")
-
-    lower_text = text.lower()
-
-    occurrences = []
-    idx = 0
-
-    while True:
-        idx = lower_text.find("item 1a", idx)
-        if idx == -1:
-            break
-        occurrences.append(idx)
-        idx += 1
-
-    if len(occurrences) < 2:
-        raise ValueError("Could not find full Item 1A section.")
-
-    # Use second occurrence (skip TOC)
-    start = occurrences[1]
-
-    end = lower_text.find("item 1b", start)
-
-    if end == -1:
-        end = start + 200000  # fallback large slice
-
-    return text[start:end]

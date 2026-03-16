@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
-from enum import Enum
 from typing import List
+from enum import Enum
 
 
 class Outlook(str, Enum):
@@ -9,44 +9,24 @@ class Outlook(str, Enum):
     negative = "negative"
 
 
+class RiskIntelligence(BaseModel):
+    risk_factors: List[str] = Field(min_items=1, max_items=5)
+    outlook: Outlook
+    confidence: float
+
+
+class BusinessIntelligence(BaseModel):
+    strengths: List[str] = Field(min_items=1, max_items=5)
+    weaknesses: List[str] = Field(min_items=1, max_items=5)
+    competitive_advantage: List[str] = Field(min_items=1, max_items=5)
+    confidence: float
+
+
 class CompanyIntelligence(BaseModel):
-    summary: str = Field(
-        ...,
-        description="Concise summary of the company analysis (max 3 sentences)."
-    )
-
-    strengths: List[str] = Field(
-        ...,
-        max_length=3,
-        description="List of key strengths (maximum 5)."
-    )
-
-    weaknesses: List[str] = Field(
-        ...,
-        max_length=3,
-        description="List of key weaknesses (maximum 5)."
-    )
-
-    competitive_advantage: List[str] = Field(
-        ...,
-        max_length=3,
-        description="List of structural competitive advantages (maximum 5)."
-    )
-
-    risk_factors: List[str] = Field(
-        ...,
-        max_length=3,
-        description="List of key risk factors (maximum 5)."
-    )
-
-    outlook: Outlook = Field(
-        ...,
-        description="Overall forward-looking classification."
-    )
-
-    confidence: float = Field(
-        ...,
-        ge=0.0,
-        le=1.0,
-        description="Model confidence between 0 and 1."
-    )
+    summary: str
+    strengths: List[str]
+    weaknesses: List[str]
+    competitive_advantage: List[str]
+    risk_factors: List[str]
+    outlook: Outlook
+    confidence: float

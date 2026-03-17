@@ -366,8 +366,8 @@ def main():
                 intel, features = analyze_company(company, cik, query)
                 render_results(company, query, intel, features)
             except Exception as e:
-                st.error(f"Execution Error: {str(e)}")
-                st.exception(e)
+                st.error(f"Analysis Generation Failed: {str(e)}")
+                st.info("The language model might have encountered an unexpected format or token limit. Please try restarting the query, or verify the inputs.")
 
 if __name__ == "__main__":
     main()

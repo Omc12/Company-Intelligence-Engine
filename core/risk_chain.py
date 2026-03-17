@@ -16,8 +16,17 @@ Context:
 
         structured_model = self.model.with_structured_output(RiskIntelligence)
 
-        result = structured_model.invoke(prompt)
-
-        return result.model_copy(
-            update={"risk_factors": result.risk_factors[:5]}
-        )
+        try:
+            parsed = structured_model.invoke(prompt)
+            return parsed.model_copy(
+                update={"risk_factors": parsed.risk_factors[:5]}
+            )
+        except Exception as e:
+            # Fallback if the LLM fails to output valid tool calls
+            print(f"RiskChain Extraction Error: {e}")
+            from core.schema import Outlook
+            return RiskIntelligence(
+                risk_factors=["Data extraction failed or model output invalid format."],
+                outlook=Outlook.neutral,
+                confidence=0.0
+            )

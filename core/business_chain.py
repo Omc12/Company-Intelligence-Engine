@@ -16,12 +16,21 @@ Context:
 
         structured_model = self.model.with_structured_output(BusinessIntelligence)
 
-        result = structured_model.invoke(prompt)
-
-        return result.model_copy(
-            update={
-                "strengths": result.strengths[:5],
-                "weaknesses": result.weaknesses[:5],
-                "competitive_advantage": result.competitive_advantage[:5],
-            }
-        )
+        try:
+            parsed = structured_model.invoke(prompt)
+            return parsed.model_copy(
+                update={
+                    "strengths": parsed.strengths[:5],
+                    "weaknesses": parsed.weaknesses[:5],
+                    "competitive_advantage": parsed.competitive_advantage[:5],
+                }
+            )
+        except Exception as e:
+            # Fallback if the LLM fails to output valid tool calls (e.g., Groq 400 Bad Request)
+            print(f"BusinessChain Extraction Error: {e}")
+            return BusinessIntelligence(
+                strengths=["Data extraction failed or model output invalid format."],
+                weaknesses=["Could not parse LLM response."],
+                competitive_advantage=["N/A"],
+                confidence=0.0
+            )

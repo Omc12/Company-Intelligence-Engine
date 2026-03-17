@@ -28,54 +28,66 @@ def deduplicate(docs):
     return unique
 
 
-def analyze_company(company,cik,query):
+def analyze_company(company, cik, query, status_callback=None):
 
-    router=SectionRouter()
-    planner=QueryPlanner()
+    def log_status(msg):
+        if status_callback:
+            status_callback(msg)
 
-    sections=router.route(query)
+    log_status("Initializing query router and planner...")
+    router = SectionRouter()
+    planner = QueryPlanner()
 
-    subqueries=planner.plan(query)
+    sections = router.route(query)
+    subqueries = planner.plan(query)
 
-    indexes=build_or_load_indexes(cik)
+    log_status(f"Loading SEC EDGAR 10-K indexes for {company}...")
+    indexes = build_or_load_indexes(cik)
 
-    risk_docs=[]
-    business_docs=[]
+    risk_docs = []
+    business_docs = []
 
-    if sections["risk"]>0.5:
-        r=indexes["risk"].as_retriever(search_kwargs={"k":15})
+    log_status("Executing semantic retrieval across filings...")
+    if sections["risk"] > 0.5:
+        r = indexes["risk"].as_retriever(search_kwargs={"k": 15})
         for q in subqueries:
             risk_docs.extend(r.invoke(q))
 
-    if sections["business"]>0.5:
-        b=indexes["business"].as_retriever(search_kwargs={"k":15})
+    if sections["business"] > 0.5:
+        b = indexes["business"].as_retriever(search_kwargs={"k": 15})
         for q in subqueries:
             business_docs.extend(b.invoke(q))
 
-    risk_docs=deduplicate(risk_docs)
-    business_docs=deduplicate(business_docs)
+    log_status("Deduplicating retrieved fragments...")
+    risk_docs = deduplicate(risk_docs)
+    business_docs = deduplicate(business_docs)
 
-    risk_docs=rerank_documents(query,risk_docs)
-    business_docs=rerank_documents(query,business_docs)
+    log_status("Re-ranking context for maximum relevance...")
+    risk_docs = rerank_documents(query, risk_docs)
+    business_docs = rerank_documents(query, business_docs)
 
-    risk_context="\n\n".join([d.page_content for d in risk_docs])
-    business_context="\n\n".join([d.page_content for d in business_docs])
+    risk_context = "\n\n".join([d.page_content for d in risk_docs])
+    business_context = "\n\n".join([d.page_content for d in business_docs])
 
-    risk_chain=RiskChain(get_model())
-    business_chain=BusinessChain(get_model(temperature=0.15))
+    risk_chain = RiskChain(get_model())
+    business_chain = BusinessChain(get_model(temperature=0.15))
 
-    risk=risk_chain.invoke(risk_context)
-    business=business_chain.invoke(business_context)
+    log_status("Synthesizing corporate risk factors...")
+    risk = risk_chain.invoke(risk_context)
+    
+    log_status("Extracting business intelligence and competitive moats...")
+    business = business_chain.invoke(business_context)
 
-    confidence=min(risk.confidence,business.confidence)
+    confidence = min(risk.confidence, business.confidence)
 
-    summary=f"""
+    log_status("Compiling final intelligence assessment...")
+    summary = f"""
 {company} operates with strengths such as {business.strengths[0]}.
 It faces risks including {risk.risk_factors[0]}.
 Overall outlook is {risk.outlook.value}.
 """
 
-    result=CompanyIntelligence(
+    result = CompanyIntelligence(
         summary=summary,
         strengths=business.strengths,
         weaknesses=business.weaknesses,
@@ -85,6 +97,7 @@ Overall outlook is {risk.outlook.value}.
         confidence=confidence
     )
 
-    features=compute_features(result)
+    features = compute_features(result)
 
-    return result,features
+    log_status("Engine execution complete.")
+    return result, features

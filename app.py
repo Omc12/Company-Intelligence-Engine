@@ -360,14 +360,26 @@ def main():
     if not submit_btn:
         render_hero()
     else:
-        with st.spinner("Executing retrieval and synthesis operations..."):
+        with st.status("Initializing Intelligence Pipeline...", expanded=True) as status_container:
             try:
+                def update_status(msg):
+                    status_container.update(label=msg)
+                    st.write(f"✓ {msg}")
+                    
                 # Call the core engine method
-                intel, features = analyze_company(company, cik, query)
-                render_results(company, query, intel, features)
+                intel, features = analyze_company(company, cik, query, status_callback=update_status)
+                
+                status_container.update(label="Intelligence Assessment Complete", state="complete", expanded=False)
+                
+                # Render results outside or inside, usually fine inside, but better to keep results visible 
             except Exception as e:
+                status_container.update(label="Analysis Pipeline Failed", state="error", expanded=True)
                 st.error(f"Analysis Generation Failed: {str(e)}")
                 st.info("The language model might have encountered an unexpected format or token limit. Please try restarting the query, or verify the inputs.")
+                return # Stop execution if failed
+                
+        # Render the UI after the status block closes so it takes up the full width beautifully
+        render_results(company, query, intel, features)
 
 if __name__ == "__main__":
     main()

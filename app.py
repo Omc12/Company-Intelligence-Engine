@@ -10,6 +10,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+from dotenv import load_dotenv
+load_dotenv() # Load env on startup
+
+@st.cache_resource
+def ping_database_pool():
+    # Warm up the database connection pool on first page load
+    try:
+        from data_ingestion.supabase_indexer import check_index_exists
+        # Ping a dummy 00000 collection to establish the Supabase PgVector connection pool
+        check_index_exists("000000", "warmup")
+        return True
+    except Exception:
+        return False
+        
+# Initialize connection silently
+ping_database_pool()
+
 # Custom CSS for Professional UI styling
 st.markdown("""
 <style>

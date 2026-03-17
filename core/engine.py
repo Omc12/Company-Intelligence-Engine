@@ -11,7 +11,7 @@ from reasoning.query_planner import QueryPlanner
 from rag.reranker import rerank_documents
 from rag.hybrid_retriever import hybrid_retrieve
 
-from data_ingestion.sec_indexer import build_or_load_indexes
+from data_ingestion.supabase_indexer import build_or_load_indexes
 
 
 def deduplicate(docs):

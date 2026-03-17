@@ -10,3 +10,4 @@ beautifulsoup4
 requests
 python-dotenv
 torch
+supabase

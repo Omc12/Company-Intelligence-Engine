@@ -11,3 +11,6 @@ requests
 python-dotenv
 torch
 supabase
+langchain-postgres
+psycopg-binary
+pgvector

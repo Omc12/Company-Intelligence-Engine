@@ -12,5 +12,5 @@ python-dotenv
 torch
 supabase
 langchain-postgres
-psycopg-binary
+psycopg2-binary
 pgvector

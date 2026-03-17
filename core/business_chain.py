@@ -8,17 +8,7 @@ class BusinessChain:
     def invoke(self, context):
 
         prompt = f"""
-Extract company strengths, weaknesses and competitive advantages.
-
-Return JSON with the following arrays (lists of strings):
-- strengths
-- weaknesses
-- competitive_advantage
-
-You must also return confidence as a float.
-confidence
-
-Return only valid JSON. Do not include markdown fences or extra text.
+Extract company strengths, weaknesses and competitive advantages based on the following context.
 
 Context:
 {context}

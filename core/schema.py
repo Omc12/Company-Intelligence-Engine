@@ -10,16 +10,16 @@ class Outlook(str, Enum):
 
 class RiskIntelligence(BaseModel):
 
-    risk_factors: List[str] = Field(min_items=1)
+    risk_factors: List[str] = Field(description="List of key risk factors identified")
     outlook: Outlook
     confidence: float
 
 
 class BusinessIntelligence(BaseModel):
 
-    strengths: List[str] = Field(min_items=1)
-    weaknesses: List[str] = Field(min_items=1)
-    competitive_advantage: List[str] = Field(min_items=1)
+    strengths: List[str] = Field(description="List of company strengths")
+    weaknesses: List[str] = Field(description="List of company weaknesses")
+    competitive_advantage: List[str] = Field(description="List of competitive advantages")
     confidence: float
 
 

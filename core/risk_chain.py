@@ -8,14 +8,7 @@ class RiskChain:
     def invoke(self, context):
 
         prompt = f"""
-Extract key risk factors from the following context.
-
-Return JSON with:
-risk_factors
-outlook
-confidence
-
-Return only valid JSON. Do not include markdown fences or extra text.
+Extract key risk factors and evaluate the overall outlook from the following context.
 
 Context:
 {context}

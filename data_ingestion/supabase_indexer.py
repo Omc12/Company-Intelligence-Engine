@@ -66,6 +66,9 @@ def build_or_load_indexes(cik, status_callback=None):
     business_store.add_documents(business_docs)
     risk_store.add_documents(risk_docs)
 
+    if status_callback:
+        status_callback(f"Successfully committed {len(business_docs) + len(risk_docs)} Intelligence chunks to Supabase Cloud.")
+
     return {
         "risk": risk_store,
         "business": business_store

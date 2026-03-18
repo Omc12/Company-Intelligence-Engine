@@ -42,7 +42,7 @@ def analyze_company(company, cik, query, status_callback=None):
     subqueries = planner.plan(query)
 
     log_status(f"Loading SEC EDGAR 10-K indexes for {company}...")
-    indexes = build_or_load_indexes(cik)
+    indexes = build_or_load_indexes(cik, status_callback=log_status)
 
     risk_docs = []
     business_docs = []

@@ -27,34 +27,34 @@ Given:
 
 ```mermaid
 flowchart TD
+  A[User] --> B[Streamlit UI]
+  B --> C[Engine analyze_company]
 
-A[User Query] --> B[Section Router]
+  C --> D[Route sections]
+  C --> E[Plan subqueries]
 
-B --> C[Query Planner]
+  C --> F[Load or build index]
+  F --> G{Index exists}
+  G -->|Yes| H[Use vector store]
+  G -->|No| I[Fetch SEC 10-K]
+  I --> J[Split into chunks]
+  J --> H
 
-C --> D[Hybrid Retrieval]
+  D --> K[Retrieve vectors]
+  E --> K
+  H --> K
 
-D --> E[Vector Search]
+  K --> L[Deduplicate]
+  L --> M[Rerank]
 
-D --> F[BM25 Search]
+  M --> N[Risk extraction]
+  M --> O[Business extraction]
 
-E --> G[Merge Results]
+  N --> P[Assemble intelligence]
+  O --> P
 
-F --> G
-
-G --> H[Cross Encoder Reranker]
-
-H --> I[Risk Chain]
-
-H --> J[Business Chain]
-
-I --> K[Structured Intelligence]
-
-J --> K
-
-K --> L[Feature Engineering]
-
-L --> M[Output]
+  P --> Q[Feature engineering]
+  Q --> R[Final report]
 ```
 
 ---

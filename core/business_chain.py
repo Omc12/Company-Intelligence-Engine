@@ -8,11 +8,11 @@ class BusinessChain:
     def invoke(self, context):
 
         prompt = f"""
-Extract company strengths, weaknesses and competitive advantages based on the following context.
+                    Extract company strengths, weaknesses and competitive advantages based on the following context.
 
-Context:
-{context}
-"""
+                    Context:
+                    {context}
+                """
 
         structured_model = self.model.with_structured_output(BusinessIntelligence)
 

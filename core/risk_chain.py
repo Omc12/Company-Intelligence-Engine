@@ -6,13 +6,12 @@ class RiskChain:
         self.model = model
 
     def invoke(self, context):
-
         prompt = f"""
-Extract key risk factors and evaluate the overall outlook from the following context.
+                    Extract key risk factors and evaluate the overall outlook from the following context.
 
-Context:
-{context}
-"""
+                    Context:
+                    {context}
+                """
 
         structured_model = self.model.with_structured_output(RiskIntelligence)
 

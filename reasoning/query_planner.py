@@ -1,18 +1,17 @@
 from core.model import get_model
 
 class QueryPlanner:
-
     def __init__(self):
         self.model = get_model(temperature=0)
 
     def plan(self, query):
 
         prompt=f"""
-Break the query into 3 retrieval subqueries.
+                Break the query into 3 retrieval subqueries.
 
-Query:
-{query}
-"""
+                Query:
+                {query}
+            """
 
         try:
             response=self.model.invoke(prompt).content

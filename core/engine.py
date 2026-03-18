@@ -82,10 +82,10 @@ def analyze_company(company, cik, query, status_callback=None):
 
     log_status("Compiling final intelligence assessment...")
     summary = f"""
-{company} operates with strengths such as {business.strengths[0]}.
-It faces risks including {risk.risk_factors[0]}.
-Overall outlook is {risk.outlook.value}.
-"""
+                {company} operates with strengths such as {business.strengths[0]}.
+                It faces risks including {risk.risk_factors[0]}.
+                Overall outlook is {risk.outlook.value}.
+            """
 
     result = CompanyIntelligence(
         summary=summary,
